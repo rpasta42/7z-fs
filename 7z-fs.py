@@ -90,44 +90,79 @@ class SevenZipFs(Operations):
 
       self.root = root
       self.tmp_path = mk_tmp()
+      print('tmp path:', self.tmp_path)
 
       if shu.file_exists(root):
          sh.sevenz('a', root, '.empty_file')
+
+
       pass
 
    def access(self, path, mode):
+      print('access')
       pass
    def chmod(self, path, mode):
+      print('chmod')
       pass
    def chown(self, path, uid, gid):
+      print('chown')
       pass
 
+
    def getattr(self, path, fh=None):
+      print('getattr', path, fh)
       out = sh.sevenz('l', self.root)
       flist = parse_7z_list(out)
-      return {
+
+      if path == '/':
+         return {
+            'st_mode' : 16877,
+            'st_nlink' : 2
+         }
+
+      ret = {
          #'st_mtime' : flist[0]['time'],
          'st_atime' : 0,
          'st_ctime' : 0,
+         'st_gid' : 1000,
+         'st_mode' : (33204 & 40000), #33204,
          'st_mtime' : 0,
-
+         'st_nlink' : 1,
          'st_size' : flist[0]['size'],
+         'st_uid' : 1000
       }
+
+      return ret
 
 
    def readdir(self, path, fh):
+      print('readdir', path, fh)
+      #print(self.getattr('/'))
+
       out = sh.sevenz('l', self.root)
       dirents = parse_7z_list_names(out)
+
       #for r in dirents:
       #   yield r
       return dirents
 
    def unlink(self, path):
-      print(path)
+      print('unlink', path)
       #sh.sevenz('d',
 
    #File methods
    def read(self, path, length, offset, fh):
+      print('read', path, length, offset, fh)
+
+      fname = path.split('/')[-1]
+
+      out = sh.sevenz('l', self.root)
+      if not (fname in parse_7z_list_names(out)):
+         return None
+
+      sevenz('e', self.root, fname, '-o' + self.tmp_path)
+      fval = shu.read_file(self.tmp_path + '/' + fname, binary=True)
+      return fval[offset:offset+length]
       pass
 
 def main(mountpoint, root):
